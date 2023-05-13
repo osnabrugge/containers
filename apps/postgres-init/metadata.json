@@ -1,5 +1,5 @@
 {
-  "app": "flood",
+  "app": "postgres-init",
   "base": false,
   "channels": [
     {
@@ -11,7 +11,7 @@
       "stable": true,
       "tests": {
         "enabled": true,
-        "type": "web"
+        "type": "cli"
       }
     }
   ]
