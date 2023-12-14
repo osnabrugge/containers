@@ -5,7 +5,6 @@ import os
 
 import json
 import yaml
-import requests
 
 from subprocess import check_output
 
@@ -41,30 +40,10 @@ def get_latest_version(subdir, channel_name):
     elif os.path.isfile(os.path.join(ci_dir, "latest.sh")):
         return get_latest_version_sh(os.path.join(ci_dir, "latest.sh"), channel_name)
     elif os.path.isfile(os.path.join(subdir, channel_name, "latest.py")):
-       return get_latest_version_py(os.path.join(subdir, channel_name, "latest.py"), channel_name)
+        return get_latest_version_py(os.path.join(subdir, channel_name, "latest.py"), channel_name)
     elif os.path.isfile(os.path.join(subdir, channel_name, "latest.sh")):
         return get_latest_version_sh(os.path.join(subdir, channel_name, "latest.sh"), channel_name)
     return None
-
-def get_published_version(image_name):
-    r = requests.get(
-        f"https://api.github.com/users/{repo_owner}/packages/container/{image_name}/versions",
-        headers={
-            "Accept": "application/vnd.github.v3+json",
-            "Authorization": "token " + os.environ["TOKEN"]
-        },
-    )
-
-    if r.status_code != 200:
-        return None
-
-    data = json.loads(r.text)
-    for image in data:
-        tags = image["metadata"]["container"]["tags"]
-        if "rolling" in tags:
-            tags.remove("rolling")
-            # Assume the longest string is the complete version number
-            return max(tags, key=len)
 
 def get_image_metadata(subdir, meta, forRelease=False, force=False, channels=None):
     imagesToBuild = {
@@ -89,15 +68,6 @@ def get_image_metadata(subdir, meta, forRelease=False, force=False, channels=Non
             toBuild["name"] = meta["app"]
         else:
             toBuild["name"] = "-".join([meta["app"], channel["name"]])
-
-        # Skip if latest version already published
-        if not force:
-            published = get_published_version(toBuild["name"])
-            if published is not None and published == version:
-                continue
-            toBuild["published_version"] = published
-
-        toBuild["version"] = version
 
         # Image Tags
         toBuild["tags"] = ["rolling", version]
