@@ -5,14 +5,16 @@ ARG TARGETARCH
 ARG VENDOR
 ARG VERSION
 
+# krb5 on musl isn't thread-safe and Npgsql's default GSS probe segfaults on it (exit 139).
 ENV DOTNET_EnableDiagnostics=0 \
-    LIDARR__UPDATE__BRANCH=develop
+    LIDARR__UPDATE__BRANCH=develop \
+    PGGSSENCMODE=disable
 
 USER root
 WORKDIR /app
 
 RUN \
-    apk add --no-cache \
+    apk add --no-cache --upgrade \
         bash \
         ca-certificates \
         catatonit \
@@ -22,6 +24,7 @@ RUN \
         ffmpeg \
         icu-libs \
         jq \
+        krb5-libs \
         libintl \
         nano \
         sqlite-libs \
