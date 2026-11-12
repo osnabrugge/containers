@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from contextlib import contextmanager
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from sqlalchemy.pool import StaticPool
@@ -16,7 +17,7 @@ from app.db.models import (
     InboxSourceKind,
     User,
 )
-from app.modules.ingestion import inbox, staging_leases
+from app.modules.ingestion import inbox, scratch_windows, staging_leases
 
 
 class QuarantineTests(unittest.TestCase):
@@ -63,7 +64,7 @@ class QuarantineTests(unittest.TestCase):
                 self.assertEqual(source.read_bytes(), b"preserve these bytes")
 
 
-class ResolverTests(unittest.TestCase):
+class CaptureLifecycleTests(unittest.TestCase):
     def setUp(self):
         self.engine = create_engine(
             "sqlite://",
@@ -147,6 +148,42 @@ class ResolverTests(unittest.TestCase):
         self.assertTrue(started)
         self.assertEqual(source_url, "https://example.com/model.stl")
         self.assertIsNotNone(owner_id)
+
+    def test_import_scratch_lifecycle_accepts_inherited_setgid(self):
+        for mode in (0o700, 0o2700):
+            with self.subTest(mode=oct(mode)), tempfile.TemporaryDirectory() as root:
+                incoming = Path(root) / "incoming"
+                incoming.mkdir()
+                incoming.chmod(mode)
+                with patch.object(
+                    scratch_windows, "settings", SimpleNamespace(incoming_dir=incoming)
+                ):
+                    with scratch_windows.open_window(
+                        kind=scratch_windows.WindowKind.LOCAL_COPY,
+                        max_bytes=4096,
+                        session_factory=self,
+                    ) as window:
+                        directory = window.directory
+                        self.assertTrue(directory.is_dir())
+                    self.assertFalse(directory.exists())
+
+    def test_unsafe_import_scratch_parent_preserves_existing_bytes(self):
+        with tempfile.TemporaryDirectory() as root:
+            incoming = Path(root)
+            parent = incoming / "scratch-windows"
+            parent.mkdir()
+            parent.chmod(0o750)
+            sentinel = parent / "foreign"
+            sentinel.write_bytes(b"do not touch")
+            with patch.object(
+                scratch_windows, "settings", SimpleNamespace(incoming_dir=incoming)
+            ), self.assertRaises(scratch_windows.WindowCleanupError):
+                scratch_windows.create_window(
+                    kind=scratch_windows.WindowKind.LOCAL_COPY,
+                    max_bytes=4096,
+                    session_factory=self,
+                )
+            self.assertEqual(sentinel.read_bytes(), b"do not touch")
 
 
 if __name__ == "__main__":

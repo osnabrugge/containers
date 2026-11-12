@@ -11,7 +11,7 @@ import (
 var captureTests string
 
 func Test(t *testing.T) {
-	image := helpers.GetTestImage("ghcr.io/osnabrugge/printstash-api:0.15.1-homeops.1")
+	image := helpers.GetTestImage("ghcr.io/osnabrugge/printstash-api:0.15.1-homeops.2")
 	helpers.RequireCommandSucceeds(t, image, &helpers.ContainerConfig{
 		Env: map[string]string{"VAULT_DATA_ROOT": "/tmp/printstash-capture-test"},
 	}, "/app/.venv/bin/python", "-c", captureTests)

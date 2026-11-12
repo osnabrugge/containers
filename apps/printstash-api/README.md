@@ -3,9 +3,10 @@
 This image extends the exact upstream v0.15.1 API image. It preserves the
 upstream runtime and applies two narrow capture fixes:
 
-- Permit an inherited setgid bit on an otherwise owner-only quarantine
-  directory. Kubernetes `fsGroup` creates mode `2700`; access must still be
-  `0700`. Inode, marker, lock, symlink and atomic-quarantine checks remain intact.
+- Permit an inherited setgid bit on otherwise owner-only quarantine and import
+  scratch directories. Kubernetes `fsGroup` creates mode `2700`; access must
+  still be `0700`. Inode, marker, lock, symlink and atomic-quarantine checks
+  remain intact.
 - Keep slot-backed browser captures out of URL resolution until explicit
   finalization, including stale queued resolver jobs.
 

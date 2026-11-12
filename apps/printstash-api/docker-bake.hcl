@@ -5,7 +5,7 @@ variable "APP" {
 }
 
 variable "VERSION" {
-  default = "0.15.1-homeops.1"
+  default = "0.15.1-homeops.2"
 }
 
 variable "SOURCE" {

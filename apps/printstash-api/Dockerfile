@@ -9,5 +9,5 @@ RUN patch --batch --forward --fuzz=0 -p1 -d /patched < /patched/capture.patch
 ADD --checksum=sha256:8d56b405468aad11f87ab5763f901e276e08d9646ff5c8481b1762b6b789e9ed https://raw.githubusercontent.com/xiao-villamor/PrintStash/b45b65d0c7d4faca5856da37187f893ba0662596/LICENSE /licenses/printstash/LICENSE
 
 FROM upstream
-COPY --from=patched /patched/app/modules/ingestion/inbox.py /patched/app/modules/ingestion/staging_leases.py /app/app/modules/ingestion/
+COPY --from=patched /patched/app/modules/ingestion/inbox.py /patched/app/modules/ingestion/staging_leases.py /patched/app/modules/ingestion/scratch_windows.py /app/app/modules/ingestion/
 COPY --from=patched /licenses/printstash/LICENSE /usr/share/licenses/printstash/LICENSE
