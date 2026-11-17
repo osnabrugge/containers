@@ -3,7 +3,7 @@
 FROM docker.io/library/python:3.14-slim
 ARG VERSION
 # renovate: datasource=pypi depName=esphome-device-builder
-ARG DEVICE_BUILDER_VERSION=1.28.0
+ARG DEVICE_BUILDER_VERSION=1.28.1
 
 ENV \
     CRYPTOGRAPHY_DONT_BUILD_RUST=1 \
@@ -14,8 +14,7 @@ ENV \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_NO_CACHE=true \
-    UV_SYSTEM_PYTHON=true \
-    UV_EXTRA_INDEX_URL="https://wheels.home-assistant.io/musllinux/"
+    UV_SYSTEM_PYTHON=true
 
 ENV \
     HOME="/config" \
