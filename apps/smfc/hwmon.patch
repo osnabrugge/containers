@@ -1,0 +1,77 @@
+diff --git a/src/smfc/hdfc.py b/src/smfc/hdfc.py
+index 7ab08cf..cb5f880 100644
+--- a/src/smfc/hdfc.py
++++ b/src/smfc/hdfc.py
+@@ -3,6 +3,7 @@
+ #   smfc package: Supermicro fan control for Linux (home) servers.
+ #   smfc.HdFc() class implementation.
+ #
++import json
+ import subprocess
+ import time
+ from typing import List
+@@ -103,15 +104,17 @@ class HdFc(FanController):
+         """Return per-HD device labels (configured hd_names) matching last_per_device_temps positionally."""
+         return list(self.hd_device_names)
+ 
+-    def _exec_smartctl(self, arguments: List[str]) -> subprocess.CompletedProcess:
++    def _exec_smartctl(self, arguments: List[str], *, timeout: float | None = None) -> subprocess.CompletedProcess:
+         """Execute the `smartctl` command.
+         Args:
+             arguments (List[str]): list of arguments of `smartctl` command
++            timeout (float | None): optional subprocess timeout in seconds
+         Returns:
+             subprocess.CompletedProcess: result of the executed subprocess
+         Raises:
+             FileNotFoundError: command not found
+             RuntimeError: sudo error
++            subprocess.TimeoutExpired: command exceeded the requested timeout
+         """
+         r: subprocess.CompletedProcess
+         args: List[str]
+@@ -124,12 +127,22 @@ class HdFc(FanController):
+         args.append(self.config.smartctl_path)
+         args.extend(arguments)
+         # May raise FileNotFoundError if smartctl is not found.
+-        r = subprocess.run(args, check=False, capture_output=True, text=True)
++        r = subprocess.run(args, check=False, capture_output=True, text=True, timeout=timeout)
+         # In case if sudo return code report execution problem (for smartctl it could be any SMART error)
+         if r.returncode != 0 and self.sudo and "sudo" in r.stderr:
+             raise RuntimeError(f"sudo error ({r.returncode}): {r.stderr}!")
+         return r
+ 
++    def _fresh_smartctl_temperature(self, index: int) -> float:
++        """Read a bounded, uncached fallback without changing the selected HWMON source."""
++        result = self._exec_smartctl(["-A", "-j", self.hd_device_names[index]], timeout=5)
++        if result.returncode & 0x07:
++            raise OSError("smartctl could not complete its temperature read")
++        temperature = json.loads(result.stdout)["temperature"]["current"]
++        if type(temperature) not in (int, float) or not 0 < temperature < 150:
++            raise ValueError("smartctl returned an invalid temperature")
++        return float(temperature)
++
+     def _get_nth_temp(self, index: int) -> float:
+         """Get the temperature of the nth element in the hwmon list. This is a specific implementation for HD
+         fan controller.
+@@ -199,7 +212,20 @@ class HdFc(FanController):
+             try:
+                 with open(self.hwmon_path[index], "r", encoding="UTF-8") as f:
+                     value = float(f.read()) / 1000
+-            except (IOError, FileNotFoundError, ValueError, IndexError) as e:
++            except OSError as e:
++                try:
++                    value = self._fresh_smartctl_temperature(index)
++                except (OSError, RuntimeError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired) as fallback_error:
++                    raise type(e)(
++                        f"ERROR: Cannot read temperature from HWMON or fresh smartctl "
++                        f"(disk={self.hd_device_names[index]})!"
++                    ) from fallback_error
++                self.log.msg(
++                    Log.LOG_INFO,
++                    f"WARNING: HD: HWMON read failed; using fresh SMART temperature "
++                    f"(disk={self.hd_device_names[index]})",
++                )
++            except (ValueError, IndexError) as e:
+                 raise type(e)(f"ERROR: Cannot read temperature from HWMON file "
+                               f"(disk={self.hd_device_names[index]})!") from e
+ 
